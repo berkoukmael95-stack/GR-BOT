@@ -1,3 +1,5 @@
+import logging
+import random
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -6,25 +8,20 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-import random
-import logging
+import os
 
 # ================= CONFIG =================
 
-TOKEN = "8237102590:AAGlWSNkgyxOJdWmYvIYH8QdCcofvH8j9pU"
-CHANNEL_ID = -1003522688084  # conservé si besoin plus tard
-
-# 🔒 Lien UNIQUE créé MANUELLEMENT avec "Approuver les demandes"
-INVITE_LINK = "https://t.me/+TON_LIEN_AVEC_APPROBATION"
+TOKEN = os.getenv("8237102590:AAGlWSNkgyxOJdWmYvIYH8QdCcofvH8j9pU")  # token dans Railway
+INVITE_LINK = os.getenv("https://t.me/+6zNWiAj71ic3MzY0")  # lien Telegram privé
 
 # ==========================================
 
 logging.basicConfig(level=logging.INFO)
 
-# Stockage des réponses captcha
 captcha_answers = {}
 
-# ================= /start =================
+# ---------- /start ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
@@ -35,17 +32,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"👋 Bonjour {user.first_name}\n\n"
-        f"Pour accéder au canal, résous ce captcha :\n\n"
+        f"🔐 Pour accéder au canal, résous ce captcha :\n\n"
         f"👉 {a} + {b} = ?\n\n"
         f"✏️ Réponds uniquement avec le nombre."
     )
 
-# ============== CAPTCHA CHECK ==============
-async def handle_captcha(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ---------- Vérification ----------
+async def check_captcha(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    user_id = user.id
 
-    if user_id not in captcha_answers:
+    if user.id not in captcha_answers:
         return
 
     try:
@@ -54,26 +50,27 @@ async def handle_captcha(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Envoie uniquement un nombre.")
         return
 
-    if answer == captcha_answers[user_id]:
-        del captcha_answers[user_id]
+    if answer == captcha_answers[user.id]:
+        del captcha_answers[user.id]
 
         await update.message.reply_text(
-            "✅ Captcha validé !\n\n"
-            "🔒 Clique sur ce lien pour envoyer ta demande d’adhésion :\n\n"
-            f"{INVITE_LINK}"
+            "✅ **Captcha validé !**\n\n"
+            "🔓 Clique sur ce lien pour envoyer ta demande d’adhésion :\n"
+            f"{INVITE_LINK}",
+            parse_mode="Markdown",
         )
     else:
         await update.message.reply_text(
             "❌ Mauvaise réponse.\n"
-            "Réessaie avec /start"
+            "🔁 Réessaie avec /start"
         )
 
-# ================== MAIN ===================
+# ---------- MAIN ----------
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_captcha))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, check_captcha))
 
     print("🤖 Bot lancé")
     app.run_polling()
